@@ -77,6 +77,7 @@ while($hash3{$biggest[0]} >= $cutoff){
 			@union{keys %hash1, keys %hash2} = ();
 			my $un = scalar keys %union; # number of union nodes
 
+			# only store qualified module pairs
 			if($isn/$un > $cutoff){
 				my $pair = $m1."_".$m2; # module pair name
 				$hash3{"$pair"} = $isn/$un; # For module pair m1_m2, overlapping percentage of module pairs = intersection/union

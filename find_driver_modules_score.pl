@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 # take mutiple seeds
 # Do not check if input seeds are module
+# simulated annealing
 # FLN
 
 use strict;
@@ -49,19 +50,6 @@ close IN;
 		}
 	}
 
-=head
-	my $internal_score = 0;
-	my $edge = 0;
-	foreach my $g1(keys %module){
-		foreach my $g2(keys %module){
-			if($FLN{$g1}{$g2}){
-				$internal_score = $internal_score + $FLN{$g1}{$g2};
-				$edge = $edge + 1;
-			}
-		}
-	}
-=cut
-
 	my @all_ns = keys %new_ns;
 
 	my $N = scalar keys %nodes;
@@ -74,19 +62,6 @@ close IN;
 		foreach my $m(keys %new_mem_hash){
 			$module{$m} = 1;
 		}
-
-=head
-		my $internal_score = 0;
-		my $edge = 0;
-		foreach my $g1(keys %module){
-			foreach my $g2(keys %module){
-				if($FLN{$g1}{$g2}){
-					$internal_score = $internal_score + $FLN{$g1}{$g2};
-					$edge = $edge + 1;
-				}
-			}
-		}
-=cut
 
 		@all_ns = ();
 		my %new_ns; # neighbors of nodes in current module
