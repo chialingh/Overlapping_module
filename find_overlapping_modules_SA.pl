@@ -10,8 +10,8 @@ my $file1 = $ARGV[0]; # seeds
 my $theda = $ARGV[1];
 #my $file2 = "FLN.data.human.txt"; # FLN
 #my $NN = 21659;
-my $file2 = "random_small_FLN.txt";
-my $NN = 11015;
+my $file2 = "test_FLN.txt";
+my $NN = 60;
 
 my ($f, $apx) = split(/\./, $file1);
 
@@ -35,7 +35,7 @@ my @all_ns;
 
 # read seeds
 #open(IN, "/home/clhuang/lab/causal_modules/results/2012NOV06/seeds/$file1");
-open(IN, "seeds1.txt");
+open(IN, "$file1");
 while(<IN>){
 	chomp $_;
 	$nodes{$_} = (); # looked nodes
@@ -46,20 +46,32 @@ close IN;
 my $e = 2.71;
 my $lamda = 0.9;
 my $Sd = cal_mod_score(\%module);
+$Sd = $Sd*(-1);
+print "$Sd\n";
 
-for(my $T = 70; $T > 0.00005; $T = $lamda*$T){
+for(my $T = 1000; $T > 0.000005; $T = $lamda*$T){
 	my %new_ns; # neighbors of first layer nodes
 	foreach my $g1(keys %module){
 		foreach my $g2(keys %{$FLN{$g1}}){
 			$new_ns{$g2} = ();
 		}
 	}
+
+	# randomly pick one node from neighbors and add it into the module
 	my @new_ns_array  = keys %new_ns;
 	my $g2_size = scalar @new_ns_array;
 	my $i = int(rand($g2_size));
 	my $new_node = $new_ns_array[$i];
 	my %new_module = %module;
 	$new_module{$new_node} = ();
+
+
+	# randomly pick one node from the module and toss it
+	my @module_nodes_array = keys %module;
+	my $mod_size = scalar @module_nodes_array;
+	my $i = int(rand($mod_size));
+	my $toss_node = $module_nodes_array[$i];
+	delete $new_module{$toss_node};
 
 	my $Sd_new = cal_mod_score(\%new_module);
 	if($Sd_new <= $Sd){
@@ -73,10 +85,14 @@ for(my $T = 70; $T > 0.00005; $T = $lamda*$T){
 	}
 }
 
+$Sd = $Sd*(-1);
 # print results
+print "$Sd\n";
+=head
 foreach(keys %module){
 	print "$_\n";
 }
+=cut
 
 sub cal_mod_score{
 
