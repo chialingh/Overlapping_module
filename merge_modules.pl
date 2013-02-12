@@ -5,6 +5,11 @@
 
 use strict;
 
+######
+my @time = localtime(time);
+print "Reading FLN:$time[2]:$time[1]:$time[0]\n";
+######
+
 my $cutoff = $ARGV[0]; # decide at what overlapping level modules should be merged. 0~1 => 0%~100%
 my $theda = 0.2; # threshold when searching for the representative module
 
@@ -19,7 +24,10 @@ while(<IN>){
 }
 close IN;
 
-
+######
+my @time = localtime(time);
+print "Reading modules:$time[2]:$time[1]:$time[0]\n";
+######
 my %module_list; # list of modules
 
 my %module_gene; 
@@ -38,12 +46,18 @@ for(my $i = 1; $i <=10000; $i++){
 }
 close IN;
 
+######
+my @time = localtime(time);
+print "Strat merging modules:$time[2]:$time[1]:$time[0]\n";
+######
+
 my %hash3;
 
 my @biggest;
 $biggest[0] = 1;
 $hash3{$biggest[0]} = 1;
 
+my $jj = 1;
 while($hash3{$biggest[0]} >= $cutoff){
 	my %hash1; # module1
 	my %hash2; # module2
@@ -55,6 +69,20 @@ while($hash3{$biggest[0]} >= $cutoff){
 	my @module_list_array = keys %module_list; # list of module names
 	my $module_number = $#module_list_array; # number of modules - 1
 
+######
+my @time = localtime(time);
+print "The $jj round.\n";
+print "start:$time[2]:$time[1]:$time[0]\n";
+print "Number of modules: ";
+print scalar @module_list_array;
+print "\n";
+######
+
+
+######
+my @time = localtime(time);
+print "Calculating overlapping:$time[2]:$time[1]:$time[0]\n";
+######
 	# for each module pairs, module 1 and module 2
 	# find number of common genes and percentage of common genes in each module.
 	for(my $i = 0; $i <= $module_number - 1; $i++){
@@ -92,14 +120,32 @@ while($hash3{$biggest[0]} >= $cutoff){
 	undef %hash1;
 	undef %hash2;
 
+######
+my @time = localtime(time);
+print "Merging modules:$time[2]:$time[1]:$time[0]\n";
+######
+
 	# sort module pairs according to overlapping percentage (from large to small)
 	my @biggest = sort{ $hash3{$b} <=> $hash3{$a} } keys %hash3;
+
+######
+my @time = localtime(time);
+my $bbb = scalar @biggest;
+print "Merging $bbb modules:$time[2]:$time[1]:$time[0]\n";
+######
 
 	# finish clustering if there is no module has more than C% overlapping with another module
 	last if $hash3{$biggest[0]} < $cutoff;
 
 	# Find representative module for each needed to be merged module pair 
+my $mm1 = 1;
 	foreach my $pair(@biggest){
+
+######
+my @time = localtime(time);
+print "Merging module $mm1:$time[2]:$time[1]:$time[0]\n";
+######
+
 #		if($hash3{$pair} >= $cutoff){
 			my ($module1, $module2) = split(/_/, $pair);
 			# do merging only for unmerged modules
@@ -161,12 +207,19 @@ while($hash3{$biggest[0]} >= $cutoff){
 				}
 			}
 #		}
+		$mm1 = $mm1 + 1;
 	}
 	# update module list;
 	undef %module_list;
 	my %module_list;
 	@module_list{keys %module_gene} = 1;
+	$jj = $jj + 1;
 }
+
+######
+my @time = localtime(time);
+print "Printing results:$time[2]:$time[1]:$time[0]\n";
+######
 
 # print results
 open(OUT, ">Merged_10000_module4_0p2_$cutoff.txt");

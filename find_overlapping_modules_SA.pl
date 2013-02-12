@@ -46,48 +46,65 @@ close IN;
 my $e = 2.71;
 my $lamda = 0.9;
 my $Sd = cal_mod_score(\%module);
-$Sd = $Sd*(-1);
 print "$Sd\n";
 
-for(my $T = 1000; $T > 0.000005; $T = $lamda*$T){
+for(my $T = 500; $T > 0.000005; $T = $lamda*$T){
 	my %new_ns; # neighbors of first layer nodes
 	foreach my $g1(keys %module){
 		foreach my $g2(keys %{$FLN{$g1}}){
-			$new_ns{$g2} = ();
+#			my %temp_module = %module;
+#			$temp_module{$g2} = ();
+#			my $temp_Sd = cal_mod_score(\%temp_module);
+#			if(($temp_Sd - $Sd) <= $theda*(-1)){
+				$new_ns{$g2} = ();
+#			}
 		}
 	}
+	my $j = 0;
+	for(my $i = 1; $i <= 200; $i++){
+		# randomly pick one node from neighbors and add it into the module
+		my @new_ns_array  = keys %new_ns;
+		my $g2_size = scalar @new_ns_array;
+		my $i = int(rand($g2_size));
+		my $new_node = $new_ns_array[$i];
+		my %new_module = %module;
+		$new_module{$new_node} = ();
 
-	# randomly pick one node from neighbors and add it into the module
-	my @new_ns_array  = keys %new_ns;
-	my $g2_size = scalar @new_ns_array;
-	my $i = int(rand($g2_size));
-	my $new_node = $new_ns_array[$i];
-	my %new_module = %module;
-	$new_module{$new_node} = ();
-
-
-	# randomly pick one node from the module and toss it
-	my @module_nodes_array = keys %module;
-	my $mod_size = scalar @module_nodes_array;
-	my $i = int(rand($mod_size));
-	my $toss_node = $module_nodes_array[$i];
-	delete $new_module{$toss_node};
-
-	my $Sd_new = cal_mod_score(\%new_module);
-	if($Sd_new <= $Sd){
-		$Sd = $Sd_new;
-		%module = %new_module;
-	}else{
-		if(rand(1) <= $e**(-1*($Sd_new-$Sd)/$T)){
+		my $Sd_new = cal_mod_score(\%new_module);
+		if($Sd_new <= $Sd){
 			$Sd = $Sd_new;
 			%module = %new_module;
+		}else{
+			if(rand(1) <= $e**(-1*($Sd_new-$Sd)/$T)){
+				$Sd = $Sd_new;
+				%module = %new_module;
+			}
+		}
+
+		# randomly pick one node from the module and toss it
+		my @module_nodes_array = keys %module;
+		my $mod_size = scalar @module_nodes_array;
+		my $i = int(rand($mod_size));
+		my $toss_node = $module_nodes_array[$i];
+		delete $new_module{$toss_node};
+
+		my $Sd_new = cal_mod_score(\%new_module);
+		if($Sd_new <= $Sd){
+			$Sd = $Sd_new;
+			%module = %new_module;
+		}else{
+			if(rand(1) <= $e**(-1*($Sd_new-$Sd)/$T)){
+				$Sd = $Sd_new;
+				%module = %new_module;
+			}
 		}
 	}
 }
 
-$Sd = $Sd*(-1);
+my $aa = scalar keys %module;
 # print results
 print "$Sd\n";
+print "$aa\n";
 =head
 foreach(keys %module){
 	print "$_\n";
@@ -128,7 +145,8 @@ sub cal_mod_score{
 		$out_score1 = $So1/$e2;
 	}
 
-	my $Sd1 = (-1)*($in_score1 - $out_score1); # score of current module
+#	my $Sd1 = $in_score1 - $out_score1; # score of current module
+	my $Sd1 = $out_score1 - $in_score1; # score of current module
 
 	return($Sd1);
 }
