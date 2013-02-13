@@ -52,6 +52,7 @@ print "Strat merging modules:$time[2]:$time[1]:$time[0]\n";
 ######
 
 my %hash3;
+my %merged_module_list; # merged modules
 
 my @biggest;
 $biggest[0] = 1;
@@ -59,8 +60,6 @@ $hash3{$biggest[0]} = 1;
 
 my $jj = 1;
 while($hash3{$biggest[0]} >= $cutoff){
-	my %hash1; # module1
-	my %hash2; # module2
 	my %hash3; # overlapping percentage of module pairs
 	my %hash4; # percentage of common genes in module1
 	my %hash5; # percentage of common genes in module2
@@ -83,42 +82,36 @@ print "\n";
 my @time = localtime(time);
 print "Calculating overlapping:$time[2]:$time[1]:$time[0]\n";
 ######
-	# for each module pairs, module 1 and module 2
+	# for the first round, for each module pairs, module 1 and module 2
 	# find number of common genes and percentage of common genes in each module.
-	for(my $i = 0; $i <= $module_number - 1; $i++){
-		my $m1 = $module_list_array[$i]; # m1: name of module 1
-		%hash1 = %{$module_gene{$m1}}; # genes in module m1
-		for(my $j = $i + 1; $j <= $module_number; $j++){
-			my $m2 = $module_list_array[$j]; # m2: name of module 2
-			%hash2 = %{$module_gene{$m2}}; # genes in module m2
-
-			my %intersection; # intersection nodes
-			my %union;	  # union nodes
-
-			# find intersection nodes
-			foreach(keys %hash1){
-				$intersection{$_} = $hash1{$_} if exists $hash2{$_};
-			}
-			my $isn = scalar keys %intersection; # number of intersection nodes
-
-			# find union nodes
-			@union{keys %hash1, keys %hash2} = ();
-			my $un = scalar keys %union; # number of union nodes
-
-			# only store qualified module pairs
-			if($isn/$un > $cutoff){
-				my $pair = $m1."_".$m2; # module pair name
-				$hash3{"$pair"} = $isn/$un; # For module pair m1_m2, overlapping percentage of module pairs = intersection/union
-
-				my $s1 = scalar keys %hash1; # number of genes in module m1, size of module m1
-				my $s2 = scalar keys %hash2; # number of genes in module m2, size of module m2
-				$hash4{"$pair"} = $isn/$s1;  # For module pair m1_m2, percentage of common genes in module m1 = intersection/size of module m1
-				$hash5{"$pair"} = $isn/$s2;  # For module pair m1_m2, percentage of common genes in module m2 = intersection/size of module m2
+	if($jj == 1){
+		for(my $i = 0; $i<= $module_number - 1; $i++){
+			my $m1 = $module_list_array[$i];
+			for(my $j = $i + 1; $j <= $module_number; $j++){
+				my $m2 = $module_list_array[$j];
+				my ($value3, $value4, $value5) = find_common_genes($m1, $m2, \%module_gene);
+				if($value3){
+					my $pair = $m1."_".$m2; # module pair name
+					$hash3{"$pair"} = $value3;
+					$hash4{"$pair"} = $value4;
+					$hash5{"$pair"} = $value5;
+				}
 			}
 		}
+	}else{ # for the following rounds, only calculate overlapping between new merged modules and rest of unmerged modules
+		foreach my $m1(keys %merged_module_list){
+			for(my $i = 0; $i<= $module_number; $i++){
+				my $m2 = $module_list_array[$i];
+				my ($value3, $value4, $value5) = find_common_genes($m1, $m2, \%module_gene);
+				if($value3){
+					my $pair = $m1."_".$m2; # module pair name
+					$hash3{"$pair"} = $value3;
+					$hash4{"$pair"} = $value4;
+					$hash5{"$pair"} = $value5;
+				}
+			}
+		}		
 	}
-	undef %hash1;
-	undef %hash2;
 
 ######
 my @time = localtime(time);
@@ -140,73 +133,70 @@ print "Merging $bbb modules:$time[2]:$time[1]:$time[0]\n";
 	# Find representative module for each needed to be merged module pair 
 my $mm1 = 1;
 	foreach my $pair(@biggest){
-
 ######
 my @time = localtime(time);
 print "Merging module $mm1:$time[2]:$time[1]:$time[0]\n";
 ######
+		my ($module1, $module2) = split(/_/, $pair);
+		# do merging only for unmerged modules
+		if( exists $module_list{$module1} && exists $module_list{$module2}){ 
+			my $aa = $hash4{$pair}; # percentage of common genes in module m1
+			my $bb = $hash5{$pair}; # percentage of common genes in module m2
+			if($aa > 2*$bb){
+			# Remove module m1 if common genes are the majority of the module m1
+			# which means module m1 is part of module m2
+				delete $module_list{$module1};
+				delete $module_gene{$module1};
+			}elsif($bb > 2*$aa){
+			# Remove module m2 if common genes are the majority of the module m2
+			# which means module m2 is part of module m1
+				delete $module_list{$module2};
+				delete $module_gene{$module2};
+			}else{
+			# common genes are part of module m1 and module m2
+			# which measn both module m1 and module m2 only capture part of the true module
+			# use intersection nodes as seed and search in the union nodes for finding the true module
+				my %module1_hash = %{$module_gene{$module1}}; # genes in module m1
+				my %module2_hash = %{$module_gene{$module2}}; # genes in module m2
+				my %intersection; # intersection nodes of module m1 and m2
+				foreach(keys %module1_hash){
+					$intersection{$_} = $module1_hash{$_} if exists $module2_hash{$_};
+				}
+				# union nodes of module m1 and m2
+				my %union;
+				@union{keys %module1_hash, keys %module2_hash} = ();
 
-#		if($hash3{$pair} >= $cutoff){
-			my ($module1, $module2) = split(/_/, $pair);
-			# do merging only for unmerged modules
-			if( exists $module_list{$module1} && exists $module_list{$module2}){ 
-				my $aa = $hash4{$pair}; # percentage of common genes in module m1
-				my $bb = $hash5{$pair}; # percentage of common genes in module m2
-				if($aa > 2*$bb){
-				# Remove module m1 if common genes are the majority of the module m1
-				# which means module m1 is part of module m2
-					delete $module_list{$module1};
-					delete $module_gene{$module1};
-				}elsif($bb > 2*$aa){
-				# Remove module m2 if common genes are the majority of the module m2
-				# which means module m2 is part of module m1
-					delete $module_list{$module2};
-					delete $module_gene{$module2};
-				}else{
-				# common genes are part of module m1 and module m2
-				# which measn both module m1 and module m2 only capture part of the true module
-				# use intersection nodes as seed and search in the union nodes for finding the true module
-					my %module1_hash = %{$module_gene{$module1}}; # genes in module m1
-					my %module2_hash = %{$module_gene{$module2}}; # genes in module m2
-					my %intersection; # intersection nodes of module m1 and m2
-					foreach(keys %module1_hash){
-						$intersection{$_} = $module1_hash{$_} if exists $module2_hash{$_};
-					}
-					# union nodes of module m1 and m2
-					my %union;
-					@union{keys %module1_hash, keys %module2_hash} = ();
-
-					# retrieve partial FLN => only contains union genes of module m1 and m2
-					my %FLN1;
-					foreach my $g1(keys %union){
-						foreach my $g2(keys %union){
-							if($FLN{$g1}{$g2}){
-								$FLN1{$g1}{$g2} = $FLN{$g1}{$g2};
-								$FLN1{$g2}{$g1} = $FLN{$g1}{$g2};
-							}
+				# retrieve partial FLN => only contains union genes of module m1 and m2
+				my %FLN1;
+				foreach my $g1(keys %union){
+					foreach my $g2(keys %union){
+						if($FLN{$g1}{$g2}){
+							$FLN1{$g1}{$g2} = $FLN{$g1}{$g2};
+							$FLN1{$g2}{$g1} = $FLN{$g1}{$g2};
 						}
 					}
-
-					# remove module m1 and m2
-					delete $module_list{$module1};
-					delete $module_list{$module2};
-					delete $module_gene{$module1};
-					delete $module_gene{$module2};
-					# new name of merged module
-					my $pair_idx = $module1."X".$module2;
-					my $NN = scalar keys %union; # number of union genes
-					# search for representative module. %1: seeds, %2: searching field (partial FLN), %3: size of searching field
-					my $merged_module_ref = find_merged_module(\%intersection, \%FLN1, $NN); 
-					my %merged_module = %$merged_module_ref; # representative module
-					%{$module_gene{$pair_idx}} = %merged_module; # update %module_gene with the new representative module
-					undef %FLN1;
-					undef %union;
-					undef %intersection;
-					undef %module1_hash;
-					undef %module2_hash;
 				}
+
+				# remove module m1 and m2
+				delete $module_list{$module1};
+				delete $module_list{$module2};
+				delete $module_gene{$module1};
+				delete $module_gene{$module2};
+				# new name of merged module
+				my $pair_idx = $module1."X".$module2;
+				$merged_module_list{$pair_idx} = ();
+				my $NN = scalar keys %union; # number of union genes
+				# search for representative module. %1: seeds, %2: searching field (partial FLN), %3: size of searching field
+				my $merged_module_ref = find_merged_module(\%intersection, \%FLN1, $NN); 
+				my %merged_module = %$merged_module_ref; # representative module
+				%{$module_gene{$pair_idx}} = %merged_module; # update %module_gene with the new representative module
+				undef %FLN1;
+				undef %union;
+				undef %intersection;
+				undef %module1_hash;
+				undef %module2_hash;
 			}
-#		}
+		}
 		$mm1 = $mm1 + 1;
 	}
 	# update module list;
@@ -232,6 +222,46 @@ foreach my $k1(keys %module_gene){
 	print OUT "\n";
 }
 close OUT;
+
+sub find_common_genes{
+	my $m1 = shift;
+	my $m2 = shift;
+
+	my $module_gene_ref = shift;
+	%module_gene = %$module_gene_ref;
+
+	my %hash1;
+	my %hash2;
+
+	my %hash1 = %{$module_gene{$m1}}; # genes in module m1
+	my %hash2 = %{$module_gene{$m2}}; # genes in module m2
+
+	my %intersection; # intersection nodes
+	my %union;	  # union nodes
+	my $value3 = 0;
+	my $value4 = 0;
+	my $value5 = 0;
+
+	# find intersection nodes
+	foreach(keys %hash1){
+		$intersection{$_} = $hash1{$_} if exists $hash2{$_};
+	}
+	my $isn = scalar keys %intersection; # number of intersection nodes
+
+	# find union nodes
+	@union{keys %hash1, keys %hash2} = ();
+	my $un = scalar keys %union; # number of union nodes
+
+	# only store qualified module pairs
+	if($isn/$un > $cutoff){
+		my $s1 = scalar keys %hash1; # number of genes in module m1, size of module m1
+		my $s2 = scalar keys %hash2; # number of genes in module m2, size of module m2
+		$value3 = $isn/$un; # For module pair m1_m2, overlapping percentage of module pairs = intersection/union
+		$value4 = $isn/$s1;  # For module pair m1_m2, percentage of common genes in module m1 = intersection/size of module m1
+		$value5 = $isn/$s2;  # For module pair m1_m2, percentage of common genes in module m2 = intersection/size of module m2
+	}
+	return($value3, $value4, $value5);
+}
 
 sub find_merged_module{
 	my $ins_ref = shift;  # reference of hash of intersection nodes
