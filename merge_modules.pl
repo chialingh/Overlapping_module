@@ -4,8 +4,9 @@
 # Using intersection nodes as seeds and searching in the union nodes for finding the representative module of two merged modules
 
 use strict;
+use warnings;
 
-open(LOG, ">log_test");
+open(LOG, ">log");
 ######
 my @time = localtime(time);
 print LOG "Reading FLN:$time[2]:$time[1]:$time[0]\n";
@@ -26,10 +27,10 @@ while(<IN>){
 close IN;
 
 ######
-my @time = localtime(time);
+@time = localtime(time);
 print LOG "Reading modules:$time[2]:$time[1]:$time[0]\n";
 ######
-my %module_list; # list of modules
+# my %module_list; # list of modules
 
 my %module_gene; 
 # hash that store the genes in each module. 
@@ -43,12 +44,11 @@ for(my $i = 1; $i <=10000; $i++){
 		$module_gene{$i}{$g} = ();
 	}
 	close INF;
-	$module_list{$i} = ();
+#	$module_list{$i} = ();
 }
-close IN;
 
 ######
-my @time = localtime(time);
+@time = localtime(time);
 print LOG "Strat merging modules:$time[2]:$time[1]:$time[0]\n";
 ######
 
@@ -66,22 +66,27 @@ while($hash3{$biggest[0]} >= $cutoff){
 	my %hash5; # percentage of common genes in module2
 	my @biggest = ();
 
-	my @module_list_array = keys %module_list; # list of module names
+	my @module_list_array = keys %module_gene; # list of module names
 	my $module_number = $#module_list_array; # number of modules - 1
 
 ################################################################
+=head
 	foreach(@module_list_array){
 		print "$_\t";
 	}
 	print "\n";
-	my @time = localtime(time);
+=cut
+	@time = localtime(time);
 	print LOG "The $jj round.\n";
 	print LOG "start:$time[2]:$time[1]:$time[0]\n";
 	print LOG "Number of modules: ";
 	print LOG scalar @module_list_array;
 	print LOG "\n";
 
-	my @time = localtime(time);
+	@time = localtime(time);
+	my $hr1 = $time[2];
+	my $min1 = $time[1];
+	my $sec1 = $time[0];
 	print LOG "Calculating overlapping:$time[2]:$time[1]:$time[0]\n";
 ##################################################################
 
@@ -102,8 +107,6 @@ while($hash3{$biggest[0]} >= $cutoff){
 					$value3 = $Nvalue3;
 					$value4 = $Nvalue4;
 					$value5 = $Nvalue5;
-my @time = localtime(time);
-print LOG "$pair\t$value3\t$time[2]:$time[1]:$time[0]\n";
 				}
 			}
 			if($pair){
@@ -128,8 +131,6 @@ print LOG "$pair\t$value3\t$time[2]:$time[1]:$time[0]\n";
 						$value3 = $Nvalue3;
 						$value4 = $Nvalue4;
 						$value5 = $Nvalue5;
-my @time = localtime(time);
-print LOG "$pair\t$value3\t$time[2]:$time[1]:$time[0]\n";
 					}
 				}
 			}
@@ -140,16 +141,20 @@ print LOG "$pair\t$value3\t$time[2]:$time[1]:$time[0]\n";
 			}
 		}		
 	}
-print LOG "\n";
 
 	# sort module pairs according to overlapping percentage (from large to small)
-	my @biggest = sort{ $hash3{$b} <=> $hash3{$a} } keys %hash3;
+	@biggest = sort{ $hash3{$b} <=> $hash3{$a} } keys %hash3;
 
 	# finish clustering if there is no module has more than C% overlapping with another module
 	last if $hash3{$biggest[0]} < $cutoff;
 
 ################################################################
-	my @time = localtime(time);
+	@time = localtime(time);
+	my $hr2 = $time[2];
+	my $min2 = $time[1];
+	my $sec2 = $time[0];
+	my $elapse_time = 3600*($hr2-$hr1) + 60*($min2-$min1) + ($sec2-$sec1);
+	print LOG "\ntime for calculating common genes: $elapse_time\n";
 	my $bbb = scalar @biggest;
 	print LOG "Merging $bbb modules:$time[2]:$time[1]:$time[0]\n";
 	print LOG "biggest module pair: $biggest[0]\n";
@@ -163,45 +168,41 @@ print LOG "\n";
 	foreach my $pair(@biggest){
 		my ($module1, $module2) = split(/_/, $pair);
 		# do merging only for unmerged modules
-		if( exists $module_list{$module1} && exists $module_list{$module2}){ 
+		if( exists $module_gene{$module1} && exists $module_gene{$module2}){ 
 #################################################################
-	my @time = localtime(time);
+	@time = localtime(time);
 	print LOG "Merging module $mm1-$pair: $time[2]:$time[1]:$time[0]\n";
-	print "Merging module $mm1-$pair: $time[2]:$time[1]:$time[0]\t";
 ################################################################
 			my $aa = $hash4{$pair}; # percentage of common genes in module m1
 			my $bb = $hash5{$pair}; # percentage of common genes in module m2
 			if($aa > 2*$bb){
-print "A\n";
 			# Remove module m1 if common genes are the majority of the module m1
 			# which means module m1 is part of module m2
-				delete $module_list{$module1};
+				# delete $module_list{$module1};
 				delete $module_gene{$module1};
 				delete $merged_module_list{$module1} if exists $merged_module_list{$module1};
 			}elsif($bb > 2*$aa){
-print "B\n";
 			# Remove module m2 if common genes are the majority of the module m2
 			# which means module m2 is part of module m1
-				delete $module_list{$module2};
+				# delete $module_list{$module2};
 				delete $module_gene{$module2};
 				delete $merged_module_list{$module2} if exists $merged_module_list{$module2};
 			}else{
-print "C\n";
 			# common genes are part of module m1 and module m2
 			# which measn both module m1 and module m2 only capture part of the true module
 			# use intersection nodes as seed and search in the union nodes for finding the true module
-				my %module1_hash = %{$module_gene{$module1}}; # genes in module m1
-				my %module2_hash = %{$module_gene{$module2}}; # genes in module m2
+			#	my %module1_hash = %{$module_gene{$module1}}; # genes in module m1
+			#	my %module2_hash = %{$module_gene{$module2}}; # genes in module m2
 
 				# intersection nodes of module m1 and m2
 				my %intersection; 
-				foreach(keys %module1_hash){
-					$intersection{$_} = $module1_hash{$_} if exists $module2_hash{$_};
+				foreach(keys %{$module_gene{$module1}}){
+					$intersection{$_} = ${$module_gene{$module1}}{$_} if exists ${$module_gene{$module2}}{$_};
 				}
 
 				# union nodes of module m1 and m2
 				my %union;
-				@union{keys %module1_hash, keys %module2_hash} = ();
+				@union{keys %{$module_gene{$module1}}, keys %{$module_gene{$module2}} } = ();
 
 				# retrieve partial FLN => only contains union genes of module m1 and m2
 				my %FLN1;
@@ -215,8 +216,8 @@ print "C\n";
 				}
 
 				# remove module m1 and m2
-				delete $module_list{$module1};
-				delete $module_list{$module2};
+				# delete $module_list{$module1};
+				# delete $module_list{$module2};
 				delete $module_gene{$module1};
 				delete $module_gene{$module2};
 				delete $merged_module_list{$module1} if exists $merged_module_list{$module1};
@@ -225,13 +226,13 @@ print "C\n";
 				my $pair_idx = $module1."X".$module2;
 print LOG "$pair_idx\n";
 				$merged_module_list{$pair_idx} = ();
-				$module_list{$pair_idx} = ();
+				# $module_list{$pair_idx} = ();
 				my $NN = scalar keys %union; # number of union genes
 
 				# search for representative module. %1: seeds, %2: searching field (partial FLN), %3: size of searching field
 				my $merged_module_ref = find_merged_module(\%intersection, \%FLN1, $NN); 
-				my %merged_module = %$merged_module_ref; # representative module
-				%{$module_gene{$pair_idx}} = %merged_module; # update %module_gene with the new representative module
+				# my %merged_module = %$merged_module_ref; # representative module
+				%{$module_gene{$pair_idx}} = %$merged_module_ref; # update %module_gene with the new representative module
 
 				undef %FLN1;
 				undef %union;
@@ -244,32 +245,21 @@ print LOG "$pair_idx\n";
 	}
 
 	# update module list;
-	my %module_list;
-	@module_list{keys %module_gene} = 1;
-#	@module_list_array = keys %module_list;
+#	my %module_list;
+#	@module_list{keys %module_gene} = 1;
 	$jj = $jj + 1;
-#####################################################
-	print scalar keys %module_gene;
-	print "\n";
-	print scalar keys %module_list;
-	print "\n";
-	foreach(keys %module_gene){
-		print "$_\t";
-	}
-	print "\n";
-#####################################################
 }
 
 ######
-my @time = localtime(time);
+@time = localtime(time);
 print LOG "Printing results:$time[2]:$time[1]:$time[0]\n";
 ######
 
 close LOG;
 
 # print results
-#open(OUT, ">Merged_10000_module4_0p2_$cutoff.txt");
-open(OUT, ">test.txt");
+open(OUT, ">Merged_10000_module5_0p2_$cutoff.txt");
+#open(OUT, ">test123.txt");
 print OUT "Name\tElements\n";
 foreach my $k1(keys %module_gene){
 	print OUT "$k1";
@@ -281,19 +271,8 @@ foreach my $k1(keys %module_gene){
 close OUT;
 
 sub find_common_genes{
-	my $m1 = shift;
-	my $m2 = shift;
-
-	my $module_gene_ref = shift;
-	%module_gene = %$module_gene_ref;
-
-	my $cutoff = shift;	
-
-	my %hash1;
-	my %hash2;
-
-	my %hash1 = %{$module_gene{$m1}}; # genes in module m1
-	my %hash2 = %{$module_gene{$m2}}; # genes in module m2
+	my ($m1, $m2, $module_gene_ref, $cutoff) = @_;
+	# %module_gene = %$module_gene_ref;
 
 	my %intersection; # intersection nodes
 	my %union;	  # union nodes
@@ -302,19 +281,19 @@ sub find_common_genes{
 	my $value5 = 0;
 
 	# find intersection nodes
-	foreach(keys %hash1){
-		$intersection{$_} = $hash1{$_} if exists $hash2{$_};
+	foreach(keys %{${$module_gene_ref}{$m1}}){
+		$intersection{$_} = ${$module_gene_ref}{$m1}{$_} if exists ${$module_gene_ref}{$m2}{$_};
 	}
 	my $isn = scalar keys %intersection; # number of intersection nodes
 
 	# find union nodes
-	@union{keys %hash1, keys %hash2} = ();
+	@union{keys %{${$module_gene_ref}{$m1}}, keys %{${$module_gene_ref}{$m2}}} = ();
 	my $un = scalar keys %union; # number of union nodes
 
 	# only store qualified module pairs
 	if($isn/$un > $cutoff){
-		my $s1 = scalar keys %hash1; # number of genes in module m1, size of module m1
-		my $s2 = scalar keys %hash2; # number of genes in module m2, size of module m2
+		my $s1 = scalar keys %{${$module_gene_ref}{$m1}}; # number of genes in module m1, size of module m1
+		my $s2 = scalar keys %{${$module_gene_ref}{$m2}}; # number of genes in module m2, size of module m2
 		$value3 = $isn/$un; # For module pair m1_m2, overlapping percentage of module pairs = intersection/union
 		$value4 = $isn/$s1;  # For module pair m1_m2, percentage of common genes in module m1 = intersection/size of module m1
 		$value5 = $isn/$s2;  # For module pair m1_m2, percentage of common genes in module m2 = intersection/size of module m2
@@ -323,28 +302,28 @@ sub find_common_genes{
 }
 
 sub find_merged_module{
-	my $ins_ref = shift;  # reference of hash of intersection nodes
-	my $fln1_ref = shift; # reference of hash of union FLN
-	my $NN = shift;	      # size of union FLN
+	my ($ins_ref, $fln1_ref, $NN) = @_;
 
 	# read intersection nodes as seeds
-	my %nodes = %$ins_ref; # checked nodes
-	my %module = %$ins_ref; # first module
+	# my %nodes = %$ins_ref; # checked nodes
+	# my %module = %$ins_ref; # first module
 
 	# partial FLN (Union FLN)
 	my %FLN1 = %$fln1_ref;	
 
 	my %new_ns; # neighbors of first layer nodes
-	foreach my $g1(keys %module){
-		foreach my $g2(keys %{$FLN1{$g1}}){
-			unless($module{$g2}){ # if new neighbor g2 is not in current module
+	foreach my $g1(keys %$ins_ref){
+		foreach my $g2(keys %{${$fln1_ref}{$g1}}){
+			unless( ${$ins_ref}{$g2}){ # if new neighbor g2 is not in current module
 				$new_ns{$g2} = 1;
 			}
 		}
 	}
 
 
-	my $N = scalar keys %nodes; # number of checked nodes
+	my $N = scalar keys %$ins_ref; # number of checked nodes
+
+	my $nodes_ref = $ins_ref;
 
 	# stop if all nodes in the union FLN are checked
 	while($N < $NN){
@@ -352,24 +331,24 @@ sub find_merged_module{
 
 		# evaluate new neighbores
 		# %1: new candidate members, %2: checked nodes, %3: current module, %4: union FLN
-		my ($new_mem, $nodes) = eval_node(\@all_ns, \%nodes, \%module, \%FLN1);
+		my ($new_mem, $nodes_ref) = eval_node(\@all_ns, $nodes_ref, $ins_ref, $fln1_ref);
 
-		my %new_mem_hash = %$new_mem; # new member
-		my %nodes = %$nodes;	      # checked nodes
+		#my %new_mem_hash = %$new_mem; # new member
+		#my %nodes = %$nodes_ref;	      # checked nodes
 
 		# stop if there is no new member
-		last if scalar keys %new_mem_hash == 0;
+		last if scalar keys %$new_mem == 0;
 
 		# add new members into current module
-		foreach my $m(keys %new_mem_hash){
-			$module{$m} = 1;
+		foreach my $m(keys %$new_mem){
+			${$ins_ref}{$m} = 1;
 		}
 
 		@all_ns = ();
 		my %new_ns; # new candidate members, i.e. neighbors of nodes in current module
-		foreach my $g1(keys %module){
-			foreach my $g2(keys %{$FLN1{$g1}}){
-				unless($module{$g2}){ # if new neighbor g2 is not in current module
+		foreach my $g1(keys %$ins_ref){
+			foreach my $g2(keys %{${$fln1_ref}{$g1}}){
+				unless(${$ins_ref}{$g2}){ # if new neighbor g2 is not in current module
 					$new_ns{$g2} = 1;
 				}
 			}
@@ -377,20 +356,18 @@ sub find_merged_module{
 		last if scalar keys %new_ns == 0; # stop if there is no new neighbor
 	}
 
-	return(\%module);			
+	#return(\%module);			
+	return($ins_ref);			
 }
 
 
 sub eval_node{
-	my $ns_ref = shift;
-	my $nd_ref = shift;
-	my $mod_ref = shift;
-	my $fln1_ref = shift;
+	my ($ns_ref, $nd_ref, $mod_ref, $fln1_ref) = @_;
 
 	my @new_ns = @$ns_ref; # new candidate members
-	my %nd = %$nd_ref; # checked nodes
-	my %mod = %$mod_ref; # current module
-	my %FLN1 = %$fln1_ref; # partial FLN (Union FLN)
+#	my %nd = %$nd_ref; # checked nodes
+#	my %mod = %$mod_ref; # current module
+#	my %FLN1 = %$fln1_ref; # partial FLN (Union FLN)
 
 	my %members; # new members
 
@@ -403,17 +380,17 @@ sub eval_node{
 	my $So1 = 0;
 	my $e1 = 0;
 	my $e2 = 0;
-	foreach my $g1(keys %mod){ # for every node in current module
-		foreach my $g2(keys %{$FLN1{$g1}}){ # look for their neighbors on FLN
-			if(exists $mod{$g2}){ # if a neighbor is inside module, calculate Si
-				$Si1 = $Si1 + $FLN1{$g1}{$g2};
+	foreach my $g1(keys %$mod_ref){ # for every node in current module
+		foreach my $g2(keys %{${$fln1_ref}{$g1}}){ # look for their neighbors on FLN
+			if(exists ${$mod_ref}{$g2}){ # if a neighbor is inside module, calculate Si
+				$Si1 = $Si1 + ${$fln1_ref}{$g1}{$g2};
 				$e1 = $e1 + 1;
 			}else{ # if a neighbor is outside module, calculate So
-				$So1 = $So1 + $FLN1{$g1}{$g2};
+				$So1 = $So1 + ${$fln1_ref}{$g1}{$g2};
 				$e2 = $e2 + 1;
 			}
 		}
-		$nd{$g1} = 1;
+		${$nd_ref}{$g1} = 1;
 	}
 
 	# stop if there is no outside neighbors
@@ -446,14 +423,14 @@ sub eval_node{
 		my $ee1 = 0;
 		my $ee2 = 0;
 		my $g1 = $new_ns[$i];
-		$nd{$g1} = 1;
-		foreach my $g2(keys %{$FLN1{$g1}}){ # for every neighbor of g1
+		${$nd_ref}{$g1} = 1;
+		foreach my $g2(keys %{${$fln1_ref}{$g1}}){ # for every neighbor of g1
 			# examine if neighbor g2 is in the current module
-			if($mod{$g2}){ 
-				$Si2 = $Si2 + $FLN1{$g1}{$g2};
+			if(${$mod_ref}{$g2}){ 
+				$Si2 = $Si2 + ${$fln1_ref}{$g1}{$g2};
 				$ee1 = $ee1 + 1;
 			}else{
-				$So2 = $So2 + $FLN1{$g1}{$g2};
+				$So2 = $So2 + ${$fln1_ref}{$g1}{$g2};
 				$ee2 = $ee2 + 1;
 			}
 		}
@@ -475,6 +452,6 @@ sub eval_node{
 			$members{$g1} = 1;
 		}
 	}
-	return (\%members, \%nd);
+	return (\%members, $nd_ref);
 }
 
