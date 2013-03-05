@@ -123,7 +123,7 @@ while($hash3{$biggest[0]} >= $cutoff){
 			my $pair;
 			for(my $i = 0; $i<= $module_number; $i++){
 				my $m2 = $module_list_array[$i];
-#print LOG "$m1\t$m2\n";
+print LOG "$m1\t$m2\n";
 				if($m1 ne $m2){
 					my ($Nvalue3, $Nvalue4, $Nvalue5) = find_common_genes($m1, $m2, \%module_gene, $cutoff);
 					if($Nvalue3 > $value3){
@@ -142,11 +142,11 @@ while($hash3{$biggest[0]} >= $cutoff){
 		}		
 	}
 
+	# finish clustering if there is no module has more than C% overlapping with another module
+	last if scalar keys %hash3 < 1;
+
 	# sort module pairs according to overlapping percentage (from large to small)
 	@biggest = sort{ $hash3{$b} <=> $hash3{$a} } keys %hash3;
-
-	# finish clustering if there is no module has more than C% overlapping with another module
-	last if $hash3{$biggest[0]} < $cutoff;
 
 ################################################################
 	@time = localtime(time);
@@ -204,17 +204,6 @@ while($hash3{$biggest[0]} >= $cutoff){
 				my %union;
 				@union{keys %{$module_gene{$module1}}, keys %{$module_gene{$module2}} } = ();
 
-				# retrieve partial FLN => only contains union genes of module m1 and m2
-				my %FLN1;
-				foreach my $g1(keys %union){
-					foreach my $g2(keys %union){
-						if($FLN{$g1}{$g2}){
-							$FLN1{$g1}{$g2} = $FLN{$g1}{$g2};
-							$FLN1{$g2}{$g1} = $FLN{$g1}{$g2};
-						}
-					}
-				}
-
 				# remove module m1 and m2
 				# delete $module_list{$module1};
 				# delete $module_list{$module2};
@@ -230,15 +219,14 @@ print LOG "$pair_idx\n";
 				my $NN = scalar keys %union; # number of union genes
 
 				# search for representative module. %1: seeds, %2: searching field (partial FLN), %3: size of searching field
-				my $merged_module_ref = find_merged_module(\%intersection, \%FLN1, $NN); 
+				my $merged_module_ref = find_merged_module(\%intersection, \%union, $NN); 
 				# my %merged_module = %$merged_module_ref; # representative module
 				%{$module_gene{$pair_idx}} = %$merged_module_ref; # update %module_gene with the new representative module
 
-				undef %FLN1;
 				undef %union;
 				undef %intersection;
-				undef %module1_hash;
-				undef %module2_hash;
+#				undef %module1_hash;
+#				undef %module2_hash;
 			}
 		}
 		$mm1 = $mm1 + 1;
@@ -258,7 +246,7 @@ print LOG "Printing results:$time[2]:$time[1]:$time[0]\n";
 close LOG;
 
 # print results
-open(OUT, ">Merged_10000_module5_0p2_$cutoff.txt");
+open(OUT, ">Merged_1000_module5_0p2_$cutoff.txt");
 #open(OUT, ">test123.txt");
 print OUT "Name\tElements\n";
 foreach my $k1(keys %module_gene){
@@ -302,24 +290,20 @@ sub find_common_genes{
 }
 
 sub find_merged_module{
-	my ($ins_ref, $fln1_ref, $NN) = @_;
+	my ($ins_ref, $uni_ref, $NN) = @_;
 
 	# read intersection nodes as seeds
-	# my %nodes = %$ins_ref; # checked nodes
-	# my %module = %$ins_ref; # first module
-
-	# partial FLN (Union FLN)
-	my %FLN1 = %$fln1_ref;	
 
 	my %new_ns; # neighbors of first layer nodes
-	foreach my $g1(keys %$ins_ref){
-		foreach my $g2(keys %{${$fln1_ref}{$g1}}){
-			unless( ${$ins_ref}{$g2}){ # if new neighbor g2 is not in current module
-				$new_ns{$g2} = 1;
+	foreach my $g1(keys %$uni_ref){
+		foreach my $g2 (keys %{ $FLN{$g1} } ){
+			if( ${$uni_ref}{$g2} ){
+				unless( ${$ins_ref}{$g2} ){
+					$new_ns{$g2} = 1;
+				}
 			}
 		}
 	}
-
 
 	my $N = scalar keys %$ins_ref; # number of checked nodes
 
@@ -331,7 +315,7 @@ sub find_merged_module{
 
 		# evaluate new neighbores
 		# %1: new candidate members, %2: checked nodes, %3: current module, %4: union FLN
-		my ($new_mem, $nodes_ref) = eval_node(\@all_ns, $nodes_ref, $ins_ref, $fln1_ref);
+		my ($new_mem, $nodes_ref) = eval_node(\@all_ns, $nodes_ref, $ins_ref, $uni_ref);
 
 		#my %new_mem_hash = %$new_mem; # new member
 		#my %nodes = %$nodes_ref;	      # checked nodes
@@ -347,9 +331,11 @@ sub find_merged_module{
 		@all_ns = ();
 		my %new_ns; # new candidate members, i.e. neighbors of nodes in current module
 		foreach my $g1(keys %$ins_ref){
-			foreach my $g2(keys %{${$fln1_ref}{$g1}}){
-				unless(${$ins_ref}{$g2}){ # if new neighbor g2 is not in current module
-					$new_ns{$g2} = 1;
+			foreach my $g2 (keys %{$FLN{$g1}} ){
+				if( ${$uni_ref}{$g2} ){
+					unless(${$ins_ref}{$g2}){ # if new neighbor g2 is not in current module
+						$new_ns{$g2} = 1;
+					}
 				}
 			}
 		}
@@ -362,13 +348,9 @@ sub find_merged_module{
 
 
 sub eval_node{
-	my ($ns_ref, $nd_ref, $mod_ref, $fln1_ref) = @_;
+	my ($ns_ref, $nd_ref, $mod_ref, $uni_ref) = @_;
 
 	my @new_ns = @$ns_ref; # new candidate members
-#	my %nd = %$nd_ref; # checked nodes
-#	my %mod = %$mod_ref; # current module
-#	my %FLN1 = %$fln1_ref; # partial FLN (Union FLN)
-
 	my %members; # new members
 
 	#########################################
@@ -381,13 +363,18 @@ sub eval_node{
 	my $e1 = 0;
 	my $e2 = 0;
 	foreach my $g1(keys %$mod_ref){ # for every node in current module
-		foreach my $g2(keys %{${$fln1_ref}{$g1}}){ # look for their neighbors on FLN
-			if(exists ${$mod_ref}{$g2}){ # if a neighbor is inside module, calculate Si
-				$Si1 = $Si1 + ${$fln1_ref}{$g1}{$g2};
-				$e1 = $e1 + 1;
-			}else{ # if a neighbor is outside module, calculate So
-				$So1 = $So1 + ${$fln1_ref}{$g1}{$g2};
-				$e2 = $e2 + 1;
+		foreach my $g2(keys %{$FLN{$g1}} ){
+		#foreach my $g2(keys %{${$fln1_ref}{$g1}}){ # look for their neighbors on FLN
+			if( ${$uni_ref}{$g2} ){
+				if(exists ${$mod_ref}{$g2}){ # if a neighbor is inside module, calculate Si
+					$Si1 = $Si1 + $FLN{$g1}{$g2};
+					# $Si1 = $Si1 + ${$fln1_ref}{$g1}{$g2};
+					$e1 = $e1 + 1;
+				}else{ # if a neighbor is outside module, calculate So
+					$So1 = $So1 + $FLN{$g1}{$g2};
+					# $So1 = $So1 + ${$fln1_ref}{$g1}{$g2};
+					$e2 = $e2 + 1;
+				}
 			}
 		}
 		${$nd_ref}{$g1} = 1;
@@ -424,13 +411,16 @@ sub eval_node{
 		my $ee2 = 0;
 		my $g1 = $new_ns[$i];
 		${$nd_ref}{$g1} = 1;
-		foreach my $g2(keys %{${$fln1_ref}{$g1}}){ # for every neighbor of g1
+		foreach my $g2 (keys %{$FLN{$g1}} ){
+		# foreach my $g2(keys %{${$fln1_ref}{$g1}}){ # for every neighbor of g1
 			# examine if neighbor g2 is in the current module
 			if(${$mod_ref}{$g2}){ 
-				$Si2 = $Si2 + ${$fln1_ref}{$g1}{$g2};
+				$Si2 = $Si2 + $FLN{$g1}{$g2};
+				# $Si2 = $Si2 + ${$fln1_ref}{$g1}{$g2};
 				$ee1 = $ee1 + 1;
 			}else{
-				$So2 = $So2 + ${$fln1_ref}{$g1}{$g2};
+				$So2 = $So2 + $FLN{$g1}{$g2};
+				# $So2 = $So2 + ${$fln1_ref}{$g1}{$g2};
 				$ee2 = $ee2 + 1;
 			}
 		}
