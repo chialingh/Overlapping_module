@@ -6,25 +6,28 @@
 use strict;
 use warnings;
 
-open(LOG, ">log");
+
+open(LOG, ">log_NeXO");
 ######
 my @time = localtime(time);
 print LOG "Reading FLN:$time[2]:$time[1]:$time[0]\n";
 ######
 
 my $cutoff = $ARGV[0]; # decide at what overlapping level modules should be merged. 0~1 => 0%~100%
-my $theda = 0.2; # threshold when searching for the representative module
+my $theda = 0; # threshold when searching for the representative module
 
+=head
 # read FLN
-my $file3 = "FLN.data.human.txt"; # FLN
 my %FLN;
-open(IN, "/home/clhuang/lab/FLN/$file3");
+open(IN, "/home/clhuang/lab/databases/NeXO/nbt.pairs");
 while(<IN>){
 	chomp $_;
 	my @line = split(/\t/, $_);
-	$FLN{$line[0]}{$line[1]} = abs($line[2]);
+	$FLN{$line[0]}{$line[1]} = 1;
+	$FLN{$line[1]}{$line[0]} = 1;
 }
 close IN;
+=cut
 
 ######
 @time = localtime(time);
@@ -36,17 +39,19 @@ my %module_gene;
 # hash that store the genes in each module. 
 # The first key is the module number and the second key is the gene (Entrez ID) in each module. 
 
-for(my $i = 1; $i <=10000; $i++){
-	my $module = "/home/clhuang/lab/causal_modules/results/2012NOV06/modules/0p2/$i.txt";
-	#my $module = "/home/clhuang/lab/causal_modules/results/Final/Overlapping_module/NeXO/modules/0/$i.txt";
+open(IN, "/home/clhuang/lab/causal_modules/results/Final/Overlapping_module/NeXO/modules/0/list.txt");
+while(my $ff=<IN>){
+	my $module = "/home/clhuang/lab/causal_modules/results/Final/Overlapping_module/NeXO/modules/0/$ff";
+	$ff =~ s/\.txt//;
+	chomp $ff;
 	open(INF, "$module");
 	while(my $g=<INF>){
 		chomp $g;
-		$module_gene{$i}{$g} = ();
+		$module_gene{$ff}{$g} = ();
 	}
 	close INF;
-#	$module_list{$i} = ();
 }
+close IN;
 
 ######
 @time = localtime(time);
@@ -134,6 +139,7 @@ while($hash3{$biggest[0]} >= $cutoff){
 					}
 				}
 			}
+#print LOG "$pair\t$value3\n";
 			if($pair){
 				$hash3{"$pair"} = $value3;
 				$hash4{"$pair"} = $value4;
@@ -215,6 +221,8 @@ while($hash3{$biggest[0]} >= $cutoff){
 				my $pair_idx = $module1."X".$module2;
 print LOG "$pair_idx\n";
 				$merged_module_list{$pair_idx} = ();
+				%{$module_gene{$pair_idx}} = %union; # update %module_gene with the new representative module
+=head
 				# $module_list{$pair_idx} = ();
 				my $NN = scalar keys %union; # number of union genes
 
@@ -222,7 +230,7 @@ print LOG "$pair_idx\n";
 				my $merged_module_ref = find_merged_module(\%intersection, \%union, $NN); 
 				# my %merged_module = %$merged_module_ref; # representative module
 				%{$module_gene{$pair_idx}} = %$merged_module_ref; # update %module_gene with the new representative module
-
+=cut
 				undef %union;
 				undef %intersection;
 #				undef %module1_hash;
@@ -246,7 +254,7 @@ print LOG "Printing results:$time[2]:$time[1]:$time[0]\n";
 close LOG;
 
 # print results
-open(OUT, ">Merged_1000_module5_0p2_$cutoff.txt");
+open(OUT, ">Merged_union_NeXO_0_$cutoff.txt");
 #open(OUT, ">test123.txt");
 print OUT "Name\tElements\n";
 foreach my $k1(keys %module_gene){
@@ -288,7 +296,7 @@ sub find_common_genes{
 	}
 	return($value3, $value4, $value5);
 }
-
+=head
 sub find_merged_module{
 	my ($ins_ref, $uni_ref, $NN) = @_;
 
@@ -358,10 +366,12 @@ sub eval_node{
 	# Calculate score of current module: Sd #
 	#					#
 	#########################################
+	my $mod_n = scalar keys %$mod_ref;
+	my $new_ns_n = scalar @new_ns;
 	my $Si1 = 0;
 	my $So1 = 0;
-	my $e1 = 0;
-	my $e2 = 0;
+	my $e1 = factorial_p($mod_n)/factorial_p($mod_n-2);;
+	my $e2 = $new_ns_n * $mod_n;
 	foreach my $g1(keys %$mod_ref){ # for every node in current module
 		foreach my $g2(keys %{$FLN{$g1}} ){
 		#foreach my $g2(keys %{${$fln1_ref}{$g1}}){ # look for their neighbors on FLN
@@ -369,11 +379,11 @@ sub eval_node{
 				if(exists ${$mod_ref}{$g2}){ # if a neighbor is inside module, calculate Si
 					$Si1 = $Si1 + $FLN{$g1}{$g2};
 					# $Si1 = $Si1 + ${$fln1_ref}{$g1}{$g2};
-					$e1 = $e1 + 1;
+					#$e1 = $e1 + 1;
 				}else{ # if a neighbor is outside module, calculate So
 					$So1 = $So1 + $FLN{$g1}{$g2};
 					# $So1 = $So1 + ${$fln1_ref}{$g1}{$g2};
-					$e2 = $e2 + 1;
+					#$e2 = $e2 + 1;
 				}
 			}
 		}
@@ -381,20 +391,12 @@ sub eval_node{
 	}
 
 	# stop if there is no outside neighbors
-	last if $e2 == 0;
+	last if $So1 == 0;
 
 	# in_score1 and out_score1 are scores of current module
-	my $in_score1 = 0;
-	my $out_score1 = 0;
 	$Si1 = $Si1/2;
-	$e1 = $e1/2;
-	if($e1 > 0){
-		$in_score1 = $Si1/$e1;
-	}
-	if($e2 > 0){
-		$out_score1 = $So1/$e2;
-	}
-
+	my $in_score1 = $Si1/$e1;
+	my $out_score1 = $So1/$e2;
 	# score of current module: Sd1
 	my $Sd1 = $in_score1 - $out_score1;
 
@@ -407,8 +409,7 @@ sub eval_node{
 	for(my $i = 0; $i <= $#new_ns; $i++){
 		my $Si2 = 0;
 		my $So2 = 0;
-		my $ee1 = 0;
-		my $ee2 = 0;
+		my $ee1 = factorial_p($mod_n + 1)/factorial_p($mod_n + 1 - 2);
 		my $g1 = $new_ns[$i];
 		${$nd_ref}{$g1} = 1;
 		foreach my $g2 (keys %{$FLN{$g1}} ){
@@ -417,31 +418,32 @@ sub eval_node{
 			if(${$mod_ref}{$g2}){ 
 				$Si2 = $Si2 + $FLN{$g1}{$g2};
 				# $Si2 = $Si2 + ${$fln1_ref}{$g1}{$g2};
-				$ee1 = $ee1 + 1;
+				# $ee1 = $ee1 + 1;
 			}else{
 				$So2 = $So2 + $FLN{$g1}{$g2};
 				# $So2 = $So2 + ${$fln1_ref}{$g1}{$g2};
-				$ee2 = $ee2 + 1;
+				# $ee2 = $ee2 + 1;
 			}
 		}
 
-		my $in_score2 = 0;
-		my $out_score2 = 0;
-		if($e1+$ee1 > 0){
-			$in_score2 = ($Si1+$Si2)/($e1+$ee1);
-		}
-		if($e2+$ee2 > 0){
-			$out_score2 = ($So1-$Si2+$So2)/($e2+$ee2);
-		}
-		
-		# score of module with new node g1: Sd2
-		my $Sd2 = $in_score2 - $out_score2;
-
-		# add g1 to new member if its addition can increase the module score by theda
-		if($Sd2 - $Sd1 > $theda){
-			$members{$g1} = 1;
-		}
+                if($So2){
+                        my $ee2 = ($So2 + $new_ns_n - 1)*($mod_n + 1);
+                        my $in_score2 = ($Si1+$Si2)/$ee1;
+                        my $out_score2 = ($So1-$Si2+$So2)/$ee2;
+                        my $Sd2 = $in_score2 - $out_score2; # score of module including node g1
+                        if($Sd2 - $Sd1 > $theda){
+                                $members{$g1} = 1;
+                        }
+                }else{
+                        $members{$g1} = 1;
+                }
 	}
 	return (\%members, $nd_ref);
 }
 
+sub factorial_p{
+        my $n = shift;
+        my $fact = Math::BigInt->new($n);
+        return $fact->bfac();
+}
+=cut

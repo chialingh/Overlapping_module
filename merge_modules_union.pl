@@ -6,25 +6,16 @@
 use strict;
 use warnings;
 
-open(LOG, ">log");
+
+open(LOG, ">log_NeXO");
 ######
 my @time = localtime(time);
 print LOG "Reading FLN:$time[2]:$time[1]:$time[0]\n";
 ######
 
 my $cutoff = $ARGV[0]; # decide at what overlapping level modules should be merged. 0~1 => 0%~100%
-my $theda = 0.2; # threshold when searching for the representative module
+my $theda = 0; # threshold when searching for the representative module
 
-# read FLN
-my $file3 = "FLN.data.human.txt"; # FLN
-my %FLN;
-open(IN, "/home/clhuang/lab/FLN/$file3");
-while(<IN>){
-	chomp $_;
-	my @line = split(/\t/, $_);
-	$FLN{$line[0]}{$line[1]} = abs($line[2]);
-}
-close IN;
 
 ######
 @time = localtime(time);
@@ -36,17 +27,19 @@ my %module_gene;
 # hash that store the genes in each module. 
 # The first key is the module number and the second key is the gene (Entrez ID) in each module. 
 
-for(my $i = 1; $i <=10000; $i++){
-	my $module = "/home/clhuang/lab/causal_modules/results/2012NOV06/modules/0p2/$i.txt";
-	#my $module = "/home/clhuang/lab/causal_modules/results/Final/Overlapping_module/NeXO/modules/0/$i.txt";
+open(IN, "/home/clhuang/lab/causal_modules/results/Final/Overlapping_module/NeXO/modules/0/list.txt");
+while(my $ff=<IN>){
+	my $module = "/home/clhuang/lab/causal_modules/results/Final/Overlapping_module/NeXO/modules/0/$ff";
+	$ff =~ s/\.txt//;
+	chomp $ff;
 	open(INF, "$module");
 	while(my $g=<INF>){
 		chomp $g;
-		$module_gene{$i}{$g} = ();
+		$module_gene{$ff}{$g} = ();
 	}
 	close INF;
-#	$module_list{$i} = ();
 }
+close IN;
 
 ######
 @time = localtime(time);
@@ -134,6 +127,7 @@ while($hash3{$biggest[0]} >= $cutoff){
 					}
 				}
 			}
+#print LOG "$pair\t$value3\n";
 			if($pair){
 				$hash3{"$pair"} = $value3;
 				$hash4{"$pair"} = $value4;
@@ -215,26 +209,13 @@ while($hash3{$biggest[0]} >= $cutoff){
 				my $pair_idx = $module1."X".$module2;
 print LOG "$pair_idx\n";
 				$merged_module_list{$pair_idx} = ();
-				# $module_list{$pair_idx} = ();
-				my $NN = scalar keys %union; # number of union genes
-
-				# search for representative module. %1: seeds, %2: searching field (partial FLN), %3: size of searching field
-				my $merged_module_ref = find_merged_module(\%intersection, \%union, $NN); 
-				# my %merged_module = %$merged_module_ref; # representative module
-				%{$module_gene{$pair_idx}} = %$merged_module_ref; # update %module_gene with the new representative module
-
+				%{$module_gene{$pair_idx}} = %union; # update %module_gene with the new representative module
 				undef %union;
 				undef %intersection;
-#				undef %module1_hash;
-#				undef %module2_hash;
 			}
 		}
 		$mm1 = $mm1 + 1;
 	}
-
-	# update module list;
-#	my %module_list;
-#	@module_list{keys %module_gene} = 1;
 	$jj = $jj + 1;
 }
 
@@ -246,7 +227,7 @@ print LOG "Printing results:$time[2]:$time[1]:$time[0]\n";
 close LOG;
 
 # print results
-open(OUT, ">Merged_1000_module5_0p2_$cutoff.txt");
+open(OUT, ">Merged_union_0p2_$cutoff.txt");
 #open(OUT, ">test123.txt");
 print OUT "Name\tElements\n";
 foreach my $k1(keys %module_gene){
@@ -288,160 +269,3 @@ sub find_common_genes{
 	}
 	return($value3, $value4, $value5);
 }
-
-sub find_merged_module{
-	my ($ins_ref, $uni_ref, $NN) = @_;
-
-	# read intersection nodes as seeds
-
-	my %new_ns; # neighbors of first layer nodes
-	foreach my $g1(keys %$uni_ref){
-		foreach my $g2 (keys %{ $FLN{$g1} } ){
-			if( ${$uni_ref}{$g2} ){
-				unless( ${$ins_ref}{$g2} ){
-					$new_ns{$g2} = 1;
-				}
-			}
-		}
-	}
-
-	my $N = scalar keys %$ins_ref; # number of checked nodes
-
-	my $nodes_ref = $ins_ref;
-
-	# stop if all nodes in the union FLN are checked
-	while($N < $NN){
-		my @all_ns = keys %new_ns;	# new candidate members
-
-		# evaluate new neighbores
-		# %1: new candidate members, %2: checked nodes, %3: current module, %4: union FLN
-		my ($new_mem, $nodes_ref) = eval_node(\@all_ns, $nodes_ref, $ins_ref, $uni_ref);
-
-		#my %new_mem_hash = %$new_mem; # new member
-		#my %nodes = %$nodes_ref;	      # checked nodes
-
-		# stop if there is no new member
-		last if scalar keys %$new_mem == 0;
-
-		# add new members into current module
-		foreach my $m(keys %$new_mem){
-			${$ins_ref}{$m} = 1;
-		}
-
-		@all_ns = ();
-		my %new_ns; # new candidate members, i.e. neighbors of nodes in current module
-		foreach my $g1(keys %$ins_ref){
-			foreach my $g2 (keys %{$FLN{$g1}} ){
-				if( ${$uni_ref}{$g2} ){
-					unless(${$ins_ref}{$g2}){ # if new neighbor g2 is not in current module
-						$new_ns{$g2} = 1;
-					}
-				}
-			}
-		}
-		last if scalar keys %new_ns == 0; # stop if there is no new neighbor
-	}
-
-	#return(\%module);			
-	return($ins_ref);			
-}
-
-
-sub eval_node{
-	my ($ns_ref, $nd_ref, $mod_ref, $uni_ref) = @_;
-
-	my @new_ns = @$ns_ref; # new candidate members
-	my %members; # new members
-
-	#########################################
-	#					#
-	# Calculate score of current module: Sd #
-	#					#
-	#########################################
-	my $Si1 = 0;
-	my $So1 = 0;
-	my $e1 = 0;
-	my $e2 = 0;
-	foreach my $g1(keys %$mod_ref){ # for every node in current module
-		foreach my $g2(keys %{$FLN{$g1}} ){
-		#foreach my $g2(keys %{${$fln1_ref}{$g1}}){ # look for their neighbors on FLN
-			if( ${$uni_ref}{$g2} ){
-				if(exists ${$mod_ref}{$g2}){ # if a neighbor is inside module, calculate Si
-					$Si1 = $Si1 + $FLN{$g1}{$g2};
-					# $Si1 = $Si1 + ${$fln1_ref}{$g1}{$g2};
-					$e1 = $e1 + 1;
-				}else{ # if a neighbor is outside module, calculate So
-					$So1 = $So1 + $FLN{$g1}{$g2};
-					# $So1 = $So1 + ${$fln1_ref}{$g1}{$g2};
-					$e2 = $e2 + 1;
-				}
-			}
-		}
-		${$nd_ref}{$g1} = 1;
-	}
-
-	# stop if there is no outside neighbors
-	last if $e2 == 0;
-
-	# in_score1 and out_score1 are scores of current module
-	my $in_score1 = 0;
-	my $out_score1 = 0;
-	$Si1 = $Si1/2;
-	$e1 = $e1/2;
-	if($e1 > 0){
-		$in_score1 = $Si1/$e1;
-	}
-	if($e2 > 0){
-		$out_score1 = $So1/$e2;
-	}
-
-	# score of current module: Sd1
-	my $Sd1 = $in_score1 - $out_score1;
-
-	##############################################
-	#					     #
-	# Calculate score of module with new node g1 #
-	#					     #
-	##############################################
-	# for every new node g1, examine if adding g1 will increase the total score Sd of module
-	for(my $i = 0; $i <= $#new_ns; $i++){
-		my $Si2 = 0;
-		my $So2 = 0;
-		my $ee1 = 0;
-		my $ee2 = 0;
-		my $g1 = $new_ns[$i];
-		${$nd_ref}{$g1} = 1;
-		foreach my $g2 (keys %{$FLN{$g1}} ){
-		# foreach my $g2(keys %{${$fln1_ref}{$g1}}){ # for every neighbor of g1
-			# examine if neighbor g2 is in the current module
-			if(${$mod_ref}{$g2}){ 
-				$Si2 = $Si2 + $FLN{$g1}{$g2};
-				# $Si2 = $Si2 + ${$fln1_ref}{$g1}{$g2};
-				$ee1 = $ee1 + 1;
-			}else{
-				$So2 = $So2 + $FLN{$g1}{$g2};
-				# $So2 = $So2 + ${$fln1_ref}{$g1}{$g2};
-				$ee2 = $ee2 + 1;
-			}
-		}
-
-		my $in_score2 = 0;
-		my $out_score2 = 0;
-		if($e1+$ee1 > 0){
-			$in_score2 = ($Si1+$Si2)/($e1+$ee1);
-		}
-		if($e2+$ee2 > 0){
-			$out_score2 = ($So1-$Si2+$So2)/($e2+$ee2);
-		}
-		
-		# score of module with new node g1: Sd2
-		my $Sd2 = $in_score2 - $out_score2;
-
-		# add g1 to new member if its addition can increase the module score by theda
-		if($Sd2 - $Sd1 > $theda){
-			$members{$g1} = 1;
-		}
-	}
-	return (\%members, $nd_ref);
-}
-

@@ -7,8 +7,10 @@ use strict;
 
 my $file1 = $ARGV[0]; # seeds
 my $theda = $ARGV[1];
-my $file2 = "FLN.data.human.txt"; # FLN
-my $NN = 21659;
+#my $file2 = "FLN.data.human.txt"; # FLN
+my $file2 = "FLN.data.sce.txt"; # FLN
+#my $NN = 21659;
+my $NN = 5469;
 
 my ($f, $apx) = split(/\./, $file1);
 
@@ -31,7 +33,8 @@ my %nodes; # looked nodes
 my @all_ns;
 
 # read seeds
-open(IN, "/home/clhuang/lab/causal_modules/results/2012NOV06/seeds/$file1");
+#open(IN, "/home/clhuang/lab/causal_modules/results/2012NOV06/seeds/$file1");
+open(IN, "SCE/seeds1/$file1");
 while(<IN>){
 	chomp $_;
 	$nodes{$_} = 1; # looked nodes
@@ -102,7 +105,8 @@ close IN;
 	}
 			
 	# print result
-	open(OUT, ">/home/clhuang/lab/causal_modules/results/2012NOV06/modules/0p15/$f.txt");
+	# open(OUT, ">/home/clhuang/lab/causal_modules/results/2012NOV06/modules/0p15/$f.txt");
+	open(OUT, ">SCE/modules/0p2/$f.txt");
 	foreach my $g(keys %module){
 		print OUT "$g\n";
 	}
