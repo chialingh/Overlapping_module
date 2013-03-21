@@ -1,24 +1,26 @@
 #!/usr/bin/perl
 
 use strict;
+use warnings;
 
 my @FLN_gene;
-#open(IN, "/home/clhuang/lab/FLN/FLN.human.gene");
-open(IN, "/home/clhuang/lab/databases/NeXO/nbt.ent");
+open(IN, "/home/clhuang/lab/FLN/FLN.sce.gene");
+#open(IN, "/home/clhuang/lab/databases/NeXO/nbt.ent");
 while(<IN>){
         chomp $_;
-	my ($a, $b) = split(/\t/, $_);
-        push(@FLN_gene, $b);
+	#my ($a, $b) = split(/\t/, $_);
+        #push(@FLN_gene, $b);
+        push(@FLN_gene, $_);
 }
 close IN;
 
 my %FLN;
-#open(IN, "/home/clhuang/lab/FLN/FLN.data.human.txt");
-open(IN, "/home/clhuang/lab/databases/NeXO/aa");
+open(IN, "/home/clhuang/lab/FLN/FLN.data.sce.txt");
+#open(IN, "/home/clhuang/lab/databases/NeXO/aa");
 while(<IN>){
 	chomp $_;
-#	my ($g1, $g2, $w) = split(/\t/, $_);
-	my ($g1, $g2) = split(/\t/, $_);
+	my ($g1, $g2, $w) = split(/\t/, $_);
+	# my ($g1, $g2) = split(/\t/, $_);
 	$FLN{$g1}{$g2} = 1;
 	$FLN{$g2}{$g1} = 1;
 }
@@ -29,8 +31,8 @@ while($i <= 10000){
 	my @rand_seeds;
 	my @seeds;
 	my $rnd_ref = fisher_yates_shuffle( \@FLN_gene);
-	my @rand_seeds = @$rnd_ref;
-	my @seeds = @rand_seeds[0..4];
+	@rand_seeds = @$rnd_ref;
+	@seeds = @rand_seeds[0..4];
 
 	my %sds;
 
@@ -46,7 +48,7 @@ while($i <= 10000){
 	my $z = scalar keys %sds;
 
 	if($z == 5){
-		open(OUT, ">NeXO/seeds/$i.sds");
+		open(OUT, ">SCE/seeds/$i.sds");
 		print OUT "$_\n" foreach @seeds;
 		close OUT;
 		$i = $i + 1;

@@ -19,7 +19,6 @@ my ($f, $apx) = split(/\./, $file1);
 
 my @seeds;
 my %FLN;
-my %FLN_genes;
 my %module;
 
 # read FLN
@@ -29,13 +28,8 @@ while(<IN>){
 	my @line = split(/\t/, $_);
 	$FLN{$line[0]}{$line[1]} = abs($line[2]);
 	$FLN{$line[1]}{$line[0]} = abs($line[2]);
-#	$FLN_genes{$line[0]} = ();
-#	$FLN_genes{$line[1]} = ();
 }
 close IN;
-#my @new_ns_array = keys %FLN_genes;
-#my $g2_size = scalar @new_ns_array;
-#undef %FLN_genes;
 
 my %nodes; # looked nodes
 my @all_ns;
@@ -51,22 +45,26 @@ while(<IN>){
 close IN;
 
 my $e = 2.71;
-my $lamda = 0.95;
+my $lamda = 0.99;
 my $Sd = cal_mod_score(\%module);
 
-for(my $T = 100; $T > 0.00002; $T = $lamda*$T){
-	my $j = 0;
-	print "$Sd\n";
-	for(my $i = 1; $i <= 200; $i++){
-		# randomly pick one node from neighbors and add it into the module
-		my %new_ns; # neighbors of first layer nodes
-		foreach my $g1(keys %module){
-			foreach my $g2(keys %{$FLN{$g1}}){
+for(my $T = 100; $T > 0.0005; $T = $lamda*$T){
+	my %new_ns; # neighbors of first layer nodes
+	foreach my $g1(keys %module){
+		foreach my $g2(keys %{$FLN{$g1}}){
+#			my %temp_module = %module;
+#			$temp_module{$g2} = ();
+#			my $temp_Sd = cal_mod_score(\%temp_module);
+#			if(($temp_Sd - $Sd) <= $theda*(-1)){
 				$new_ns{$g2} = ();
-			}
+#			}
 		}
+	}
+	my $j = 0;
+	for(my $i = 1; $i <= 200; $i++){
 		my $aa = scalar keys %module;
 		exit if $aa == 0;
+		# randomly pick one node from neighbors and add it into the module
 		my @new_ns_array  = keys %new_ns;
 		my $g2_size = scalar @new_ns_array;
 		my $j = int(rand($g2_size));
@@ -79,12 +77,11 @@ for(my $T = 100; $T > 0.00002; $T = $lamda*$T){
 			$Sd = $Sd_new;
 			%module = %new_module;
 		}else{
-			if(rand(1) <= $e**(-1000*($Sd_new-$Sd)/$T)){
+			if(rand(1) <= $e**(-1*($Sd_new-$Sd)/$T)){
 				$Sd = $Sd_new;
 				%module = %new_module;
 			}
 		}
-
 		# randomly pick one node from the module and toss it
 		my @module_nodes_array = keys %module;
 		my $mod_size = scalar @module_nodes_array;
@@ -96,7 +93,7 @@ for(my $T = 100; $T > 0.00002; $T = $lamda*$T){
 			$Sd = $Sd_new;
 			%module = %new_module;
 		}else{
-			if(rand(1) <= $e**(-1000*($Sd_new-$Sd)/$T)){
+			if(rand(1) <= $e**(-1*($Sd_new-$Sd)/$T)){
 				$Sd = $Sd_new;
 				%module = %new_module;
 			}

@@ -157,8 +157,8 @@ sub eval_node{
 		if($e1+$ee1 > 0){
 			$in_score2 = ($Si1+$Si2)/($e1+$ee1);
 		}
-		if($e2+$ee2 > 0){
-			$out_score2 = ($So1-$Si2+$So2)/($e2+$ee2);
+		if($e2+$ee2-$ee1 > 0){
+			$out_score2 = ($So1-$Si2+$So2)/($e2+$ee2-$ee1);
 		}
 		
 		my $Sd2 = $in_score2 - $out_score2; # score of module including node g1

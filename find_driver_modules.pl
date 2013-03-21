@@ -4,6 +4,7 @@
 # FLN
 
 use strict;
+use warnings;
 
 my $file1 = $ARGV[0]; # seeds
 my $theda = $ARGV[1];
@@ -16,7 +17,7 @@ my ($f, $apx) = split(/\./, $file1);
 
 my @seeds;
 my %FLN;
-my %module;
+my %module; # current module
 
 # read FLN
 open(IN, "/home/clhuang/lab/FLN/$file2");
@@ -28,13 +29,12 @@ while(<IN>){
 }
 close IN;
 
-my %module; # current module
 my %nodes; # looked nodes
 my @all_ns;
 
 # read seeds
 #open(IN, "/home/clhuang/lab/causal_modules/results/2012NOV06/seeds/$file1");
-open(IN, "SCE/seeds1/$file1");
+open(IN, "SCE/seeds/$file1");
 while(<IN>){
 	chomp $_;
 	$nodes{$_} = 1; # looked nodes
@@ -65,7 +65,7 @@ close IN;
 	}
 =cut
 
-	my @all_ns = keys %new_ns;
+	@all_ns = keys %new_ns;
 
 	my $N = scalar keys %nodes;
 
@@ -106,7 +106,7 @@ close IN;
 			
 	# print result
 	# open(OUT, ">/home/clhuang/lab/causal_modules/results/2012NOV06/modules/0p15/$f.txt");
-	open(OUT, ">SCE/modules/0p2/$f.txt");
+	open(OUT, ">SCE/modules/0/$f.txt");
 	foreach my $g(keys %module){
 		print OUT "$g\n";
 	}
@@ -115,13 +115,11 @@ close IN;
 
 
 sub eval_node{
-	my $ns_ref = shift;
-	my $nd_ref = shift;
-	my $mod_ref = shift;
+	my ($ns_ref, $nd_ref, $mod_ref) = @_;
 
 	my @new_ns = @$ns_ref; # putative new neighboring nodes
-	my %nd = %$nd_ref; # looked nodes
-	my %mod = %$mod_ref; # current module
+	#my %nd = %$nd_ref; # looked nodes
+	#my %mod = %$mod_ref; # current module
 
 	my %members; # new members
 
@@ -129,9 +127,9 @@ sub eval_node{
 	my $So1 = 0;
 	my $e1 = 0;
 	my $e2 = 0;
-	foreach my $g1(keys %mod){ # for every node in current module
+	foreach my $g1(keys %$mod_ref){ # for every node in current module
 		foreach my $g2(keys %{$FLN{$g1}}){ # look for their neighbors on FLN
-			if($mod{$g2}){ # if a neighbor is inside module, calculate Si
+			if(${$mod_ref}{$g2}){ # if a neighbor is inside module, calculate Si
 				$Si1 = $Si1 + $FLN{$g1}{$g2};
 				$e1 = $e1 + 1;
 			}else{ # if a neighbor is outside module, calculate So
@@ -139,7 +137,7 @@ sub eval_node{
 				$e2 = $e2 + 1;
 			}
 		}
-		$nd{$g1} = 1;
+		${$nd_ref}{$g1} = 1;
 	}
 
 	last if $e2 == 0;
@@ -165,10 +163,10 @@ sub eval_node{
 		my $ee1 = 0;
 		my $ee2 = 0;
 		my $g1 = $new_ns[$i];
-		$nd{$g1} = 1;
+		${$nd_ref}{$g1} = 1;
 		foreach my $g2(keys %{$FLN{$g1}}){ # for every neighbor of g1
 			# examine if neighbor g2 is in the current module
-			if($mod{$g2}){ 
+			if(${$mod_ref}{$g2}){ 
 				$Si2 = $Si2 + $FLN{$g1}{$g2};
 				$ee1 = $ee1 + 1;
 			}else{
@@ -182,8 +180,8 @@ sub eval_node{
 		if($e1+$ee1 > 0){
 			$in_score2 = ($Si1+$Si2)/($e1+$ee1);
 		}
-		if($e2+$ee2 > 0){
-			$out_score2 = ($So1-$Si2+$So2)/($e2+$ee2);
+		if($e2+$ee2-$ee1 > 0){
+			$out_score2 = ($So1-$Si2+$So2)/($e2+$ee2-$ee1); # ??? $e2+$ee2-$ee1
 		}
 		
 		my $Sd2 = $in_score2 - $out_score2; # score of module including node g1
@@ -192,5 +190,5 @@ sub eval_node{
 			$members{$g1} = 1;
 		}
 	}
-	return (\%members, \%nd);
+	return (\%members, $nd_ref);
 }

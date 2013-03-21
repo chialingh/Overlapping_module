@@ -36,7 +36,10 @@ my %module_gene;
 # hash that store the genes in each module. 
 # The first key is the module number and the second key is the gene (Entrez ID) in each module. 
 
-for(my $i = 1; $i <=10000; $i++){
+open(IN, "/home/clhuang/lab/causal_modules/results/2012NOV06/results/pathway_level_module_0p2.txt");
+while(my $i=<IN>){
+#for(my $i = 1; $i <=10000; $i++){
+	chomp $i;
 	my $module = "/home/clhuang/lab/causal_modules/results/2012NOV06/modules/0p2/$i.txt";
 	#my $module = "/home/clhuang/lab/causal_modules/results/Final/Overlapping_module/NeXO/modules/0/$i.txt";
 	open(INF, "$module");
@@ -47,6 +50,7 @@ for(my $i = 1; $i <=10000; $i++){
 	close INF;
 #	$module_list{$i} = ();
 }
+close IN;
 
 ######
 @time = localtime(time);
